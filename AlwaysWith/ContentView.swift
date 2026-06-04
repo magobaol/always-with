@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 struct ContentView: View {
     @StateObject private var model: AssociationsModel
@@ -31,33 +32,13 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            NavigationSplitView {
-                sidebar
-                    .navigationSplitViewColumnWidth(min: 280, ideal: 340)
-                    .toolbar(removing: .sidebarToggle)
-            } detail: {
-                if let association = selectedAssociation {
-                    AssociationDetailView(association: association, model: model)
-                } else {
-                    ContentUnavailableView(
-                        "Select an extension",
-                        systemImage: "doc.text",
-                        description: Text("Pick a file extension from the list to view and change its default app.")
-                    )
-                }
+            HSplitView {
+                sidebarPane
+                    .frame(minWidth: 320, idealWidth: 372, maxHeight: .infinity)
+                detailPane
+                    .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
             }
-            .navigationTitle("Always with")
-            .searchable(text: $search, prompt: "Filter by extension or app")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        Task { await model.load() }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .disabled(model.isLoading)
-                }
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             StatusBar(
                 totalCount: model.associations.count,
@@ -66,6 +47,24 @@ struct ContentView: View {
                 currentVersion: updateChecker.currentVersion
             )
         }
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                BrandBlock()
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    Task { await model.load() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .disabled(model.isLoading)
+                .help("Refresh")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                FilterField(text: $search)
+            }
+        }
+        .navigationTitle("")
         .task {
             guard autoLoad else { return }
             async let load: Void = model.load()
@@ -76,64 +75,114 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private var sidebar: some View {
+    private var sidebarPane: some View {
         if model.isLoading && model.associations.isEmpty {
             ProgressView("Scanning /Applications…")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.brandSidebarBackground)
         } else {
-            List(selection: $selection) {
-                Section {
-                    ForEach(filtered) { association in
-                        AssociationRow(association: association)
-                            .tag(association.id)
-                    }
-                } header: {
-                    AssociationRowHeader()
+            Table(filtered, selection: $selection) {
+                TableColumn("Extension") { association in
+                    Text(".\(association.ext)")
+                        .font(.system(size: 12, design: .monospaced))
                 }
+                .width(min: 80, ideal: 140)
+
+                TableColumn("Default app") { association in
+                    HStack(spacing: 8) {
+                        if let app = association.currentDefaultApp {
+                            Image(nsImage: NSWorkspace.shared.icon(forFile: app.url.path))
+                                .resizable()
+                                .frame(width: 17, height: 17)
+                            Text(app.name)
+                                .font(.system(size: 13))
+                        } else {
+                            Text("—").foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .width(min: 100, ideal: 132)
+
+                TableColumn("Apps") { association in
+                    Text("\(association.supportingApps.count)")
+                        .font(.system(size: 12))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .width(36)
             }
-            .listStyle(.inset(alternatesRowBackgrounds: true))
+            .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .background(Color.brandSidebarBackground)
+        }
+    }
+
+    @ViewBuilder
+    private var detailPane: some View {
+        if let association = selectedAssociation {
+            AssociationDetailView(association: association, model: model)
+        } else {
+            EmptyStateView()
         }
     }
 }
 
-private let extensionColumnWidth: CGFloat = 130
-private let appsColumnWidth: CGFloat = 50
-
-private struct AssociationRowHeader: View {
+private struct BrandBlock: View {
     var body: some View {
         HStack(spacing: 10) {
-            Text("Extension")
-                .frame(width: extensionColumnWidth, alignment: .leading)
-            Text("Default app")
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text("Apps")
-                .frame(width: appsColumnWidth, alignment: .trailing)
+            Image(nsImage: NSApp.applicationIconImage ?? NSImage())
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 30, height: 30)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Always With")
+                    .font(.nunitoExtraBold(size: 16.5))
+                    .foregroundStyle(.primary)
+                Text("Default apps, sorted.")
+                    .font(.nunitoSemiBold(size: 10.5))
+                    .foregroundStyle(.secondary)
+            }
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
     }
 }
 
-private struct AssociationRow: View {
-    let association: ExtensionAssociation
+private struct FilterField: View {
+    @Binding var text: String
 
     var body: some View {
-        HStack(spacing: 10) {
-            Text(".\(association.ext)")
-                .font(.system(.body, design: .monospaced))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .help(".\(association.ext)")
-                .frame(width: extensionColumnWidth, alignment: .leading)
-            Text(association.currentDefaultApp?.name ?? "—")
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .foregroundStyle(association.currentDefaultApp == nil ? .secondary : .primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text("\(association.supportingApps.count)")
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-                .frame(width: appsColumnWidth, alignment: .trailing)
+                .font(.system(size: 12))
+            TextField("Filter by extension or app", text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12.5))
         }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .strokeBorder(Color.black.opacity(0.08), lineWidth: 0.5)
+        )
+        .frame(width: 226)
+    }
+}
+
+private struct EmptyStateView: View {
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(nsImage: NSApp.applicationIconImage ?? NSImage())
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 72, height: 72)
+            Text("Pick an extension")
+                .font(.nunitoBold(size: 21))
+            Text("Choose a file extension on the left to see and change the app it always opens with.")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 300)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -152,14 +201,20 @@ private struct StatusBar: View {
                 if case .available(let release) = updateState {
                     UpdateBadge(release: release, currentVersion: currentVersion)
                 }
-                Text("\(appName) v\(appVersion) · Made with ❤️ by Francesco Face")
+                HStack(spacing: 4) {
+                    Text("\(appName) v\(appVersion) · Made with")
+                    Image(systemName: "heart.fill")
+                        .foregroundStyle(Color.brandAccent)
+                        .font(.system(size: 10))
+                    Text("by Francesco Face")
+                }
             }
             .font(.caption)
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 4)
             .frame(maxWidth: .infinity)
-            .background(.regularMaterial)
+            .background(Color.brandSidebarBackground)
         }
     }
 
