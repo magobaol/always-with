@@ -16,6 +16,7 @@ Use this file to track improvement ideas, suspected bugs and "maybe" experiments
 
 ## Maybe / nice to have
 
+- [ ] Add a small "search this extension on the web" affordance next to the extension in the detail header (e.g. a magnifying-glass icon). Useful especially for obscure extensions where `UTType.localizedDescription` returns nothing. Always present (not just when Kind is missing), so the position is predictable. Candidate destinations: `https://file.org/extension/<ext>` (preferred) or `https://fileinfo.com/extension/<ext>`.
 - [ ] The main app window feels somewhat anonymous: the toolbar has no identity markers. Evaluate ways to make the window read more clearly as Always with — an app icon or wordmark in the toolbar, or other identity elements.
 - [ ] Migrate the homebrew auto-updater to Sparkle. Sparkle gives EdDSA-signed update verification, a richer progress UI, and "skip this version" / snooze features out of the box. Only worth the refactor if the app starts being shipped to non-developer users.
 
