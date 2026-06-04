@@ -80,6 +80,7 @@
 				1344AE0B2FD1020F005E81BD /* Sources */,
 				1344AE0C2FD1020F005E81BD /* Frameworks */,
 				1344AE0D2FD1020F005E81BD /* Resources */,
+				13D000000000FF00ABCDEF01 /* Set CFBundleName */,
 			);
 			buildRules = (
 			);
@@ -173,6 +174,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		13D000000000FF00ABCDEF01 /* Set CFBundleName */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Set CFBundleName";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/libexec/PlistBuddy -c 'Set :CFBundleName \"Always With\"' \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		1344AE0B2FD1020F005E81BD /* Sources */ = {
@@ -328,6 +351,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ATSApplicationFontsPath = .;
 				INFOPLIST_KEY_CFBundleDisplayName = "Always With";
@@ -359,6 +383,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ATSApplicationFontsPath = .;
 				INFOPLIST_KEY_CFBundleDisplayName = "Always With";

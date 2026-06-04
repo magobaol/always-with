@@ -44,7 +44,7 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 HSplitView {
                     sidebarPane
-                        .frame(minWidth: sidebarMinWidth, idealWidth: 372, maxHeight: .infinity)
+                        .frame(minWidth: sidebarMinWidth, idealWidth: sidebarMinWidth, maxHeight: .infinity)
                     detailPane
                         .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
                 }

@@ -25,9 +25,14 @@ struct AboutView: View {
 
             Divider().padding(.vertical, 4)
 
-            Text("Made with ❤️ by Francesco Face")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            HStack(spacing: 4) {
+                Text("Made with")
+                Image(systemName: "heart.fill")
+                    .foregroundStyle(Color.brandAccent)
+                Text("by Francesco Face")
+            }
+            .font(.caption)
+            .foregroundStyle(.tertiary)
         }
         .padding(.horizontal, 32)
         .padding(.vertical, 28)
