@@ -94,6 +94,7 @@ struct AlwaysWithApp: App {
             CommandGroup(replacing: .appInfo) {
                 AboutMenuItem()
             }
+            CommandGroup(replacing: .help) { }
         }
 
         Window("About", id: "about-window") {
