@@ -1,12 +1,8 @@
-<img src="docs/icon.png" width="80" align="left" hspace="14"/>
-
-# Always With
+# <img src="docs/icon.png" width="56" valign="middle"/>&nbsp;&nbsp;Always With
 
 **Default apps, sorted.**
 
 A small macOS utility for tidying up your file-type associations. It lists every extension on your Mac, shows the app that's currently set as the default, and lets you reassign it to any other app that declared it knows how to open that kind of file.
-
-<br clear="all"/>
 
 ![Always With main window](docs/screenshot.png)
 
