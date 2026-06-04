@@ -6,9 +6,16 @@
 //
 
 import SwiftUI
+import CoreText
 
 @main
 struct AlwaysWithApp: App {
+    init() {
+        if let url = Bundle.main.url(forResource: "Nunito", withExtension: "ttf") {
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

@@ -1,8 +1,8 @@
-# Always with
+# Always With
 
 A small macOS utility to view and change file type associations, built with SwiftUI.
 
-![Always with screenshot](docs/screenshot.png)
+![Always With screenshot](docs/screenshot.png)
 
 ## What it does
 

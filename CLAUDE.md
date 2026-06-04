@@ -1,4 +1,4 @@
-# Always with
+# Always With
 
 When starting a session on this project, read `BACKLOG.md` for the current list of improvement ideas, suspected bugs and pending experiments. When the user says something like "lavoriamo su qualcosa dal backlog", propose the next candidates from that file.
 
