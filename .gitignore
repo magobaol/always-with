@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+
+# Xcode user data
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Build artifacts
+build/
+DerivedData/
+*.o
+*.dSYM/
+
+# Release artifacts
+dist/
+
+# Swift Package Manager
+.swiftpm/
+Packages/
+Package.pins
+Package.resolved
+
+# Local scratch
+*.swp
+*~
+default.profraw
+
+# Local reference material (design screenshots, notes)
+references/
