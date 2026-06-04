@@ -13,6 +13,9 @@ struct ContentView: View {
     @StateObject private var updateChecker = UpdateChecker()
     @State private var search = ""
     @State private var selection: ExtensionAssociation.ID?
+    @State private var extW: CGFloat = 150
+    @State private var appW: CGFloat = 132
+    @State private var scrollTarget: ExtensionAssociation.ID?
 
     private let autoLoad: Bool
 
@@ -30,23 +33,29 @@ struct ContentView: View {
         return model.associations.first(where: { $0.id == selection })
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            HSplitView {
-                sidebarPane
-                    .frame(minWidth: 320, idealWidth: 372, maxHeight: .infinity)
-                detailPane
-                    .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    private var sidebarMinWidth: CGFloat {
+        // leading pad + extW + separator + appW + separator + min Apps column + trailing pad
+        18 + extW + 9 + appW + 9 + 50 + 14
+    }
 
-            StatusBar(
-                totalCount: model.associations.count,
-                filteredCount: filtered.count,
-                updateState: updateChecker.state,
-                currentVersion: updateChecker.currentVersion
-            )
-        }
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                HSplitView {
+                    sidebarPane
+                        .frame(minWidth: sidebarMinWidth, idealWidth: 372, maxHeight: .infinity)
+                    detailPane
+                        .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                StatusBar(
+                    totalCount: model.associations.count,
+                    filteredCount: filtered.count,
+                    updateState: updateChecker.state,
+                    currentVersion: updateChecker.currentVersion
+                )
+            }
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 BrandBlock()
@@ -60,8 +69,11 @@ struct ContentView: View {
                 .disabled(model.isLoading)
                 .help("Refresh")
             }
-            ToolbarItem(placement: .primaryAction) {
-                FilterField(text: $search)
+        }
+        .searchable(text: $search, placement: .toolbar, prompt: "Filter by extension or app")
+        .onChange(of: search) { oldValue, newValue in
+            if !oldValue.isEmpty, newValue.isEmpty, let selection {
+                scrollTarget = selection
             }
         }
         .navigationTitle("")
@@ -72,6 +84,7 @@ struct ContentView: View {
             _ = await (load, updateCheck)
         }
         .frame(minWidth: 760, minHeight: 460)
+        }
     }
 
     @ViewBuilder
@@ -81,46 +94,25 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.brandSidebarBackground)
         } else {
-            Table(filtered, selection: $selection) {
-                TableColumn("Extension") { association in
-                    Text(".\(association.ext)")
-                        .font(.system(size: 12, design: .monospaced))
-                }
-                .width(min: 80, ideal: 140)
-
-                TableColumn("Default app") { association in
-                    HStack(spacing: 8) {
-                        if let app = association.currentDefaultApp {
-                            Image(nsImage: NSWorkspace.shared.icon(forFile: app.url.path))
-                                .resizable()
-                                .frame(width: 17, height: 17)
-                            Text(app.name)
-                                .font(.system(size: 13))
-                        } else {
-                            Text("—").foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .width(min: 100, ideal: 132)
-
-                TableColumn("Apps") { association in
-                    Text("\(association.supportingApps.count)")
-                        .font(.system(size: 12))
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                .width(36)
-            }
-            .tableStyle(.inset(alternatesRowBackgrounds: true))
-            .background(Color.brandSidebarBackground)
+            ExtensionListView(
+                rows: filtered,
+                selection: $selection,
+                extW: $extW,
+                appW: $appW,
+                scrollTarget: scrollTarget,
+                onScrolled: { scrollTarget = nil }
+            )
         }
     }
 
-    @ViewBuilder
     private var detailPane: some View {
-        if let association = selectedAssociation {
-            AssociationDetailView(association: association, model: model)
-        } else {
-            EmptyStateView()
+        ZStack {
+            Color.white
+            if let association = selectedAssociation {
+                AssociationDetailView(association: association, model: model)
+            } else {
+                EmptyStateView()
+            }
         }
     }
 }
@@ -144,29 +136,6 @@ private struct BrandBlock: View {
     }
 }
 
-private struct FilterField: View {
-    @Binding var text: String
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-                .font(.system(size: 12))
-            TextField("Filter by extension or app", text: $text)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12.5))
-        }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 4)
-        .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: 7))
-        .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .strokeBorder(Color.black.opacity(0.08), lineWidth: 0.5)
-        )
-        .frame(width: 226)
-    }
-}
-
 private struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 14) {
@@ -183,6 +152,180 @@ private struct EmptyStateView: View {
                 .frame(maxWidth: 300)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct ExtensionListView: View {
+    let rows: [ExtensionAssociation]
+    @Binding var selection: ExtensionAssociation.ID?
+    @Binding var extW: CGFloat
+    @Binding var appW: CGFloat
+    let scrollTarget: ExtensionAssociation.ID?
+    let onScrolled: () -> Void
+
+    @State private var draggingSep: Int? = nil
+
+    private let separatorWidth: CGFloat = 9
+    private let leadingPad: CGFloat = 18
+    private let trailingPad: CGFloat = 14
+    private let headerColor = Color(red: 0x8A / 255, green: 0x8A / 255, blue: 0x8E / 255)
+
+    var body: some View {
+        VStack(spacing: 0) {
+            headerRow
+            Rectangle()
+                .fill(Color.brandHairline)
+                .frame(height: 0.5)
+            list
+        }
+        .background(Color.brandSidebarBackground)
+    }
+
+    private var headerRow: some View {
+        HStack(spacing: 0) {
+            Text("Extension")
+                .frame(width: extW, alignment: .leading)
+                .padding(.leading, leadingPad)
+            separator(index: 0)
+            Text("Default app")
+                .frame(width: appW, alignment: .leading)
+                .padding(.leading, 12)
+            separator(index: 1)
+            Text("Apps")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 12)
+                .padding(.trailing, trailingPad)
+        }
+        .font(.system(size: 11, weight: .semibold))
+        .foregroundStyle(headerColor)
+        .frame(height: 28)
+    }
+
+    private func separator(index: Int) -> some View {
+        let isActive = draggingSep == index
+        return ZStack {
+            Color.clear
+            Rectangle()
+                .fill(isActive ? Color.brandAccent : Color.brandHairline)
+                .frame(width: isActive ? 2 : 1)
+        }
+        .frame(width: separatorWidth)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            if hovering {
+                NSCursor.resizeLeftRight.set()
+            } else if draggingSep != index {
+                NSCursor.arrow.set()
+            }
+        }
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    if draggingSep != index {
+                        draggingSep = index
+                    }
+                    let delta = value.translation.width
+                    if index == 0 {
+                        extW = clamp(extW + delta, min: 80, max: 300)
+                    } else {
+                        appW = clamp(appW + delta, min: 80, max: 300)
+                    }
+                }
+                .onEnded { _ in
+                    draggingSep = nil
+                    NSCursor.arrow.set()
+                }
+        )
+    }
+
+    @ViewBuilder
+    private var list: some View {
+        if rows.isEmpty {
+            VStack {
+                Text("No matches")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(rows.enumerated()), id: \.element.id) { index, association in
+                            rowView(association: association, isEven: index.isMultiple(of: 2))
+                                .id(association.id)
+                        }
+                    }
+                }
+                .onChange(of: scrollTarget) { _, target in
+                    guard let target else { return }
+                    guard rows.contains(where: { $0.id == target }) else {
+                        onScrolled()
+                        return
+                    }
+                    proxy.scrollTo(target, anchor: .center)
+                    onScrolled()
+                }
+            }
+        }
+    }
+
+    private func rowView(association: ExtensionAssociation, isEven: Bool) -> some View {
+        let isSelected = (selection == association.id)
+        let background: Color = {
+            if isSelected { return Color.brandAccentTint }
+            if isEven { return Color.black.opacity(0.025) }
+            return Color.clear
+        }()
+        return HStack(spacing: 0) {
+            Text(".\(association.ext)")
+                .font(.system(size: 12,
+                              weight: isSelected ? .bold : .regular,
+                              design: .monospaced))
+                .foregroundStyle(isSelected ? Color.brandAccentDark : .primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(width: extW, alignment: .leading)
+                .padding(.leading, leadingPad)
+
+            Color.clear.frame(width: separatorWidth)
+
+            HStack(spacing: 8) {
+                if let app = association.currentDefaultApp {
+                    Image(nsImage: AppIconCache.icon(for: app.url))
+                        .resizable()
+                        .frame(width: 17, height: 17)
+                    Text(app.name)
+                        .font(.system(size: 13))
+                        .foregroundStyle(isSelected ? Color.brandAccentDark : .primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                } else {
+                    Text("—").foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: appW, alignment: .leading)
+            .padding(.leading, 12)
+
+            Color.clear.frame(width: separatorWidth)
+
+            Text("\(association.supportingApps.count)")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 12)
+                .padding(.trailing, trailingPad)
+        }
+        .frame(height: 36)
+        .background(background)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            selection = association.id
+        }
+    }
+
+    private func clamp(_ value: CGFloat, min lower: CGFloat, max upper: CGFloat) -> CGFloat {
+        Swift.max(lower, Swift.min(upper, value))
     }
 }
 

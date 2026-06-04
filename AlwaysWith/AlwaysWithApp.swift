@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 import CoreText
 
 @main
@@ -13,6 +14,24 @@ struct AlwaysWithApp: App {
     init() {
         if let url = Bundle.main.url(forResource: "Nunito", withExtension: "ttf") {
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+        }
+        NSWindow.allowsAutomaticWindowTabbing = false
+        installFindShortcutMonitor()
+    }
+
+    private func installFindShortcutMonitor() {
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let isCmdF = event.modifierFlags
+                .intersection(.deviceIndependentFlagsMask) == .command
+                && event.charactersIgnoringModifiers == "f"
+            guard isCmdF, let window = NSApp.keyWindow else { return event }
+            for item in window.toolbar?.items ?? [] {
+                if let searchItem = item as? NSSearchToolbarItem {
+                    window.makeFirstResponder(searchItem.searchField)
+                    return nil
+                }
+            }
+            return event
         }
     }
 

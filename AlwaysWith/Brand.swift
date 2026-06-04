@@ -1,4 +1,18 @@
 import SwiftUI
+import AppKit
+
+enum AppIconCache {
+    private static let cache = NSCache<NSURL, NSImage>()
+
+    static func icon(for url: URL) -> NSImage {
+        if let cached = cache.object(forKey: url as NSURL) {
+            return cached
+        }
+        let image = NSWorkspace.shared.icon(forFile: url.path)
+        cache.setObject(image, forKey: url as NSURL)
+        return image
+    }
+}
 
 extension Color {
     static let brandAccent = Color(red: 0x2F / 255, green: 0x6F / 255, blue: 0xE0 / 255)

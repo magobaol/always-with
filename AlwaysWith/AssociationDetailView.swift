@@ -67,7 +67,7 @@ struct AssociationDetailView: View {
                     Text(kindLabel)
                         .font(.system(size: 14, weight: .bold))
                 }
-                Text("\(association.supportingApps.count) apps can open it")
+                Text(supportingAppsLabel)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
@@ -85,7 +85,7 @@ struct AssociationDetailView: View {
     private var currentDefaultCard: some View {
         HStack(spacing: 12) {
             if let app = association.currentDefaultApp {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: app.url.path))
+                Image(nsImage: AppIconCache.icon(for: app.url))
                     .resizable()
                     .frame(width: 38, height: 38)
                 VStack(alignment: .leading, spacing: 2) {
@@ -188,6 +188,11 @@ struct AssociationDetailView: View {
         .transition(.opacity.combined(with: .move(edge: .bottom)))
     }
 
+    private var supportingAppsLabel: String {
+        let count = association.supportingApps.count
+        return "\(count) \(count == 1 ? "app" : "apps") can open it"
+    }
+
     private var kindLabel: String? {
         if let uti = association.uti, let type = UTType(uti) {
             return type.localizedDescription
@@ -266,7 +271,7 @@ private struct AppRow: View {
 
     var body: some View {
         HStack(spacing: 11) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: app.url.path))
+            Image(nsImage: AppIconCache.icon(for: app.url))
                 .resizable()
                 .frame(width: 26, height: 26)
             VStack(alignment: .leading, spacing: 1) {
