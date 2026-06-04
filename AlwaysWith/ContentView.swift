@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var extW: CGFloat = 150
     @State private var appW: CGFloat = 132
     @State private var scrollTarget: ExtensionAssociation.ID?
+    @FocusState private var focus: AppFocus?
 
     private let autoLoad: Bool
 
@@ -47,6 +48,7 @@ struct ContentView: View {
                     detailPane
                         .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .focusSection()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 StatusBar(
@@ -100,7 +102,8 @@ struct ContentView: View {
                 extW: $extW,
                 appW: $appW,
                 scrollTarget: scrollTarget,
-                onScrolled: { scrollTarget = nil }
+                onScrolled: { scrollTarget = nil },
+                focus: $focus
             )
         }
     }
@@ -109,7 +112,7 @@ struct ContentView: View {
         ZStack {
             Color.white
             if let association = selectedAssociation {
-                AssociationDetailView(association: association, model: model)
+                AssociationDetailView(association: association, model: model, focus: $focus)
             } else {
                 EmptyStateView()
             }
@@ -162,8 +165,12 @@ private struct ExtensionListView: View {
     @Binding var appW: CGFloat
     let scrollTarget: ExtensionAssociation.ID?
     let onScrolled: () -> Void
+    @FocusState.Binding var focus: AppFocus?
 
     @State private var draggingSep: Int? = nil
+    @ObservedObject private var interaction = InteractionMode.shared
+
+    private var isListFocused: Bool { focus == .mainList }
 
     private let separatorWidth: CGFloat = 9
     private let leadingPad: CGFloat = 18
@@ -179,6 +186,13 @@ private struct ExtensionListView: View {
             list
         }
         .background(Color.brandSidebarBackground)
+        .overlay(
+            Rectangle()
+                .strokeBorder(
+                    (isListFocused && interaction.isKeyboard) ? Color.brandAccent : Color.clear,
+                    lineWidth: 2
+                )
+        )
     }
 
     private var headerRow: some View {
@@ -257,6 +271,33 @@ private struct ExtensionListView: View {
                         }
                     }
                 }
+                .focusable(true)
+                .focused($focus, equals: .mainList)
+                .focusEffectDisabled()
+                .onReceive(NotificationCenter.default.publisher(for: .listNavUp)) { _ in
+                    guard isListFocused else { return }
+                    moveSelection(by: -1, proxy: proxy)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .listNavDown)) { _ in
+                    guard isListFocused else { return }
+                    moveSelection(by: 1, proxy: proxy)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .listNavPageUp)) { _ in
+                    guard isListFocused else { return }
+                    moveSelection(by: -10, proxy: proxy)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .listNavPageDown)) { _ in
+                    guard isListFocused else { return }
+                    moveSelection(by: 10, proxy: proxy)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .listNavHome)) { _ in
+                    guard isListFocused else { return }
+                    jumpSelection(to: 0, proxy: proxy)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .listNavEnd)) { _ in
+                    guard isListFocused else { return }
+                    jumpSelection(to: rows.count - 1, proxy: proxy)
+                }
                 .onChange(of: scrollTarget) { _, target in
                     guard let target else { return }
                     guard rows.contains(where: { $0.id == target }) else {
@@ -268,6 +309,27 @@ private struct ExtensionListView: View {
                 }
             }
         }
+    }
+
+    private func moveSelection(by delta: Int, proxy: ScrollViewProxy) {
+        guard !rows.isEmpty else { return }
+        let currentIndex = rows.firstIndex { $0.id == selection } ?? -1
+        let nextIndex: Int
+        if currentIndex < 0 {
+            nextIndex = delta > 0 ? 0 : rows.count - 1
+        } else {
+            nextIndex = max(0, min(rows.count - 1, currentIndex + delta))
+        }
+        let newID = rows[nextIndex].id
+        selection = newID
+        proxy.scrollTo(newID, anchor: nil)
+    }
+
+    private func jumpSelection(to index: Int, proxy: ScrollViewProxy) {
+        guard !rows.isEmpty, index >= 0, index < rows.count else { return }
+        let newID = rows[index].id
+        selection = newID
+        proxy.scrollTo(newID, anchor: nil)
     }
 
     private func rowView(association: ExtensionAssociation, isEven: Bool) -> some View {

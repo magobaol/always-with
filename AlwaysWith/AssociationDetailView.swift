@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct AssociationDetailView: View {
     let association: ExtensionAssociation
     @ObservedObject var model: AssociationsModel
+    @FocusState.Binding var focus: AppFocus?
 
     @State private var pendingSelection: String?
     @State private var isApplying = false
@@ -12,6 +13,9 @@ struct AssociationDetailView: View {
     @State private var errorDismissTask: Task<Void, Never>?
     @State private var justUpdated = false
     @State private var flashDismissTask: Task<Void, Never>?
+    @ObservedObject private var interaction = InteractionMode.shared
+
+    private var isChangeToListFocused: Bool { focus == .changeToList }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -144,24 +148,49 @@ struct AssociationDetailView: View {
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 8)
         } else {
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(association.supportingApps.enumerated()), id: \.element.bundleIdentifier) { index, app in
-                        AppRow(
-                            app: app,
-                            isSelected: pendingSelection == app.bundleIdentifier,
-                            isLast: index == association.supportingApps.count - 1,
-                            installPath: installPath(for: app),
-                            onTap: { pickApp(app) }
-                        )
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(association.supportingApps.enumerated()), id: \.element.bundleIdentifier) { index, app in
+                            AppRow(
+                                app: app,
+                                isSelected: pendingSelection == app.bundleIdentifier,
+                                isLast: index == association.supportingApps.count - 1,
+                                installPath: installPath(for: app),
+                                onTap: { pickApp(app) }
+                            )
+                            .id(app.bundleIdentifier)
+                        }
                     }
+                }
+                .focusable(true)
+                .focused($focus, equals: .changeToList)
+                .focusEffectDisabled()
+                .onReceive(NotificationCenter.default.publisher(for: .listNavUp)) { _ in
+                    guard isChangeToListFocused else { return }
+                    moveChangeToSelection(by: -1, proxy: proxy)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .listNavDown)) { _ in
+                    guard isChangeToListFocused else { return }
+                    moveChangeToSelection(by: 1, proxy: proxy)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .listNavHome)) { _ in
+                    guard isChangeToListFocused else { return }
+                    jumpChangeToSelection(to: 0, proxy: proxy)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .listNavEnd)) { _ in
+                    guard isChangeToListFocused else { return }
+                    jumpChangeToSelection(to: association.supportingApps.count - 1, proxy: proxy)
                 }
             }
             .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 11))
             .overlay(
                 RoundedRectangle(cornerRadius: 11)
-                    .strokeBorder(Color.brandHairline, lineWidth: 1)
+                    .strokeBorder(
+                        (isChangeToListFocused && interaction.isKeyboard) ? Color.brandAccent : Color.brandHairline,
+                        lineWidth: (isChangeToListFocused && interaction.isKeyboard) ? 2 : 1
+                    )
             )
             .frame(maxHeight: .infinity)
         }
@@ -259,6 +288,29 @@ struct AssociationDetailView: View {
 
     private func installPath(for app: AppRef) -> String {
         app.url.deletingLastPathComponent().path
+    }
+
+    private func moveChangeToSelection(by delta: Int, proxy: ScrollViewProxy) {
+        let apps = association.supportingApps
+        guard !apps.isEmpty else { return }
+        let currentIndex = apps.firstIndex { $0.bundleIdentifier == pendingSelection } ?? -1
+        let nextIndex: Int
+        if currentIndex < 0 {
+            nextIndex = delta > 0 ? 0 : apps.count - 1
+        } else {
+            nextIndex = max(0, min(apps.count - 1, currentIndex + delta))
+        }
+        let newID = apps[nextIndex].bundleIdentifier
+        pendingSelection = newID
+        proxy.scrollTo(newID, anchor: nil)
+    }
+
+    private func jumpChangeToSelection(to index: Int, proxy: ScrollViewProxy) {
+        let apps = association.supportingApps
+        guard !apps.isEmpty, index >= 0, index < apps.count else { return }
+        let newID = apps[index].bundleIdentifier
+        pendingSelection = newID
+        proxy.scrollTo(newID, anchor: nil)
     }
 }
 

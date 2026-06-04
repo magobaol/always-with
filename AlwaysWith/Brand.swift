@@ -1,5 +1,17 @@
 import SwiftUI
 import AppKit
+import Combine
+
+@MainActor
+final class InteractionMode: ObservableObject {
+    static let shared = InteractionMode()
+    @Published var isKeyboard: Bool = false
+}
+
+enum AppFocus: Hashable {
+    case mainList
+    case changeToList
+}
 
 enum AppIconCache {
     private static let cache = NSCache<NSURL, NSImage>()
