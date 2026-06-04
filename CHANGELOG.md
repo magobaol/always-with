@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-06-05
+
 A complete visual identity refresh and a redesign of the main window.
 
 ### Added
