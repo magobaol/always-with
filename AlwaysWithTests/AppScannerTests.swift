@@ -95,4 +95,23 @@ struct AppScannerTests {
         #expect(result.contains("log"))
         #expect(result.contains("txt"))
     }
+
+    @Test
+    func normalizeExtensionStripsDotWhitespaceAndCase() {
+        #expect(AppScanner.normalizeExtension(".ENV") == "env")
+        #expect(AppScanner.normalizeExtension("  Md  ") == "md")
+        #expect(AppScanner.normalizeExtension("txt") == "txt")
+        #expect(AppScanner.normalizeExtension(".gitignore") == "gitignore")
+    }
+
+    @Test
+    func normalizeExtensionRejectsInvalidInput() {
+        #expect(AppScanner.normalizeExtension("") == nil)
+        #expect(AppScanner.normalizeExtension("   ") == nil)
+        #expect(AppScanner.normalizeExtension(".") == nil)
+        #expect(AppScanner.normalizeExtension("*") == nil)
+        #expect(AppScanner.normalizeExtension("a.b") == nil)
+        #expect(AppScanner.normalizeExtension("a/b") == nil)
+        #expect(AppScanner.normalizeExtension("two words") == nil)
+    }
 }

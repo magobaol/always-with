@@ -16,6 +16,8 @@ struct ContentView: View {
     @State private var extW: CGFloat = 150
     @State private var appW: CGFloat = 132
     @State private var scrollTarget: ExtensionAssociation.ID?
+    @State private var isAddingExtension = false
+    @State private var addPrefill = ""
     @FocusState private var focus: AppFocus?
 
     private let autoLoad: Bool
@@ -32,6 +34,11 @@ struct ContentView: View {
     private var selectedAssociation: ExtensionAssociation? {
         guard let selection else { return nil }
         return model.associations.first(where: { $0.id == selection })
+    }
+
+    private func presentAddSheet(prefill: String) {
+        addPrefill = prefill
+        isAddingExtension = true
     }
 
     private var sidebarMinWidth: CGFloat {
@@ -64,12 +71,27 @@ struct ContentView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
+                    presentAddSheet(prefill: "")
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .help("Add an extension manually")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
                     Task { await model.load() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
                 .disabled(model.isLoading)
                 .help("Refresh")
+            }
+        }
+        .sheet(isPresented: $isAddingExtension) {
+            AddExtensionView(prefill: addPrefill, model: model) { added in
+                search = ""
+                selection = added
+                scrollTarget = added
             }
         }
         .searchable(text: $search, placement: .toolbar, prompt: "Filter by extension or app")
@@ -103,6 +125,8 @@ struct ContentView: View {
                 appW: $appW,
                 scrollTarget: scrollTarget,
                 onScrolled: { scrollTarget = nil },
+                searchText: search,
+                onAddManual: { presentAddSheet(prefill: $0) },
                 focus: $focus
             )
         }
@@ -165,6 +189,8 @@ private struct ExtensionListView: View {
     @Binding var appW: CGFloat
     let scrollTarget: ExtensionAssociation.ID?
     let onScrolled: () -> Void
+    let searchText: String
+    let onAddManual: (String) -> Void
     @FocusState.Binding var focus: AppFocus?
 
     @State private var draggingSep: Int? = nil
@@ -255,12 +281,23 @@ private struct ExtensionListView: View {
     @ViewBuilder
     private var list: some View {
         if rows.isEmpty {
-            VStack {
+            VStack(spacing: 12) {
                 Text("No matches")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
+                if let ext = AppScanner.normalizeExtension(searchText) {
+                    Button {
+                        onAddManual(ext)
+                    } label: {
+                        Label("Add \".\(ext)\" manually", systemImage: "plus")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(Color.brandAccent)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, 16)
         } else {
             ScrollViewReader { proxy in
                 ScrollView {

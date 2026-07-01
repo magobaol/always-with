@@ -60,6 +60,18 @@ enum AppScanner {
         )
     }
 
+    /// Normalizes a user- or plist-supplied extension token: trims whitespace,
+    /// drops a leading dot, lowercases, and rejects anything that isn't a bare
+    /// extension (empty, wildcard, or containing a dot / slash / space).
+    nonisolated static func normalizeExtension(_ raw: String) -> String? {
+        var value = raw.trimmingCharacters(in: .whitespaces).lowercased()
+        if value.hasPrefix(".") { value.removeFirst() }
+        value = value.trimmingCharacters(in: .whitespaces)
+        guard !value.isEmpty, value != "*" else { return nil }
+        guard !value.contains(" "), !value.contains("."), !value.contains("/") else { return nil }
+        return value
+    }
+
     nonisolated static func extensions(fromDocumentTypes documentTypes: [[String: Any]]) -> Set<String> {
         var result = Set<String>()
         for entry in documentTypes {

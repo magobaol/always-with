@@ -135,7 +135,18 @@ struct AssociationDetailView: View {
 
     private var changeToSection: some View {
         VStack(alignment: .leading, spacing: 9) {
-            sectionLabel("Change to")
+            HStack {
+                sectionLabel("Change to")
+                Spacer()
+                Button(action: chooseOtherApp) {
+                    Label("Choose other app…", systemImage: "ellipsis.circle")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(Color.brandAccent)
+                .disabled(isApplying)
+                .help("Pick any app on this Mac, even one that didn't declare this extension")
+            }
             changeToList
         }
         .frame(maxHeight: .infinity)
@@ -241,6 +252,33 @@ struct AssociationDetailView: View {
             pendingSelection = app.bundleIdentifier
         }
         clearError()
+    }
+
+    private func chooseOtherApp() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.prompt = "Set as default"
+        panel.message = "Choose an app to always open .\(association.ext) files"
+        guard panel.runModal() == .OK,
+              let url = panel.url,
+              let app = AssociationsModel.appRef(from: url) else { return }
+
+        clearError()
+        isApplying = true
+        Task {
+            defer { isApplying = false }
+            do {
+                try await model.setDefaultApp(bundleIdentifier: app.bundleIdentifier, forExtension: association.ext)
+                pendingSelection = nil
+                triggerFlash()
+            } catch {
+                showError(error.localizedDescription)
+            }
+        }
     }
 
     private func applyChange() {
