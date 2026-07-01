@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+### Added
+- Manually add a file extension that no installed app declares (for example `.env`, which macOS only maps to a dynamic type). Use the new **+** button in the toolbar, or the inline **Add** action shown when a filtered search returns no matches. Manually-added extensions are remembered across launches.
+- For an extension no app declares, the **Change to** list now suggests every app that can open plain text, so you can still pick a sensible default.
+- New **Choose other app…** action in the detail pane opens a file panel to assign any app on your Mac, mirroring Finder's "Other…".
+
 ## [1.0.7] - 2026-06-05
 
 A complete visual identity refresh and a redesign of the main window.

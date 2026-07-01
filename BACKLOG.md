@@ -4,7 +4,6 @@ Use this file to track improvement ideas, suspected bugs and "maybe" experiments
 
 ## Improvements
 
-- [ ] Let the user manually add an extension that no installed app declares, so files like `.env` become manageable. The list is currently built purely from apps' `Info.plist` (`AppScanner` → `declaredExtensions` → `AssociationsModel.buildAssociations`), so an extension that no app declares never appears — and extensions like `env` resolve only to a *dynamic* UTI (`UTType(filenameExtension: "env")` → `dyn.…`, `isDeclared == false`), so nothing brings them into the scan. Two entry points, both opening the same sheet: a `+` button in the toolbar (always visible) and an inline "Add \".env\" manually" action shown in the sidebar's "No matches" empty state (reuses the text already typed in the filter). Persistence: manually-added extensions are remembered (e.g. `UserDefaults`) and merged back into the scanned list on every launch — the system-wide association written by `LSSetDefaultRoleHandlerForContentType` already survives on its own, but the *row* in the list does not, since the scan can't reconstruct it. Two technical nodes to resolve while building: (a) candidate apps to offer — a dynamic-UTI extension has no declaring apps, so the sheet suggests apps that declare `public.plain-text` / `public.text` plus a "Choose other app…" panel for anything else; (b) verify that `LSSetDefaultRoleHandlerForContentType` on a dynamic (`dyn.…`) UTI actually persists and doesn't fail silently — if it doesn't hold, the whole approach needs rethinking, so test this first.
 - [ ] Add a category filter that groups extensions by their general kind — video, images, audio, text, code, archives, binaries, etc. — so the user can quickly browse "all video extensions" without typing. The natural data source is `UTType` conformance: walking the parent chain of each extension's UTI against `.image`, `.movie`, `.audio`, `.text`, `.sourceCode`, `.archive`, etc. UI is the open question: segmented picker / pill bar above the list, popover from a button in the toolbar, or a dropdown next to the filter field. Also: does the category combine with the text filter (AND) or replace it?
 - [ ] Align the entire auto-update UI with standard macOS patterns. This is not only about adding an explicit "Install and Relaunch" confirmation step after the download completes, but also about reworking the release notes sheet itself (typography hierarchy, header, button placement) to match what native Mac apps do at this stage. See screenshots in `references/` (added by the user) for the target pattern.
 - [ ] Sign the app with a real Developer ID certificate and notarize the release zip. Would eliminate the "unidentified developer" warning on first launch, remove the need to manually strip quarantine, and stop App Translocation from kicking in for new installs. Requires an Apple Developer account.
@@ -20,6 +19,12 @@ Use this file to track improvement ideas, suspected bugs and "maybe" experiments
 - [ ] Migrate the homebrew auto-updater to Sparkle. Sparkle gives EdDSA-signed update verification, a richer progress UI, and "skip this version" / snooze features out of the box. Only worth the refactor if the app starts being shipped to non-developer users.
 
 ## Done
+
+### 1.0.8 — manual extensions
+
+- Manually add an extension that no installed app declares (e.g. `.env`, which resolves only to a dynamic UTI), via a `+` toolbar button or an inline action in the sidebar's "No matches" empty state. Added extensions are persisted in `UserDefaults` and merged into the scanned list on every launch (`ManualExtensionStore`, `AssociationsModel.buildAssociations`).
+- Orphan extensions (dynamic UTI, no declaring app) fall back to text-capable apps (`public.plain-text` / `public.text`) as candidates; a "Choose other app…" panel in the detail pane assigns any app, mirroring Finder's "Other…".
+- Verified that `LSSetDefaultRoleHandlerForContentType` on a dynamic UTI persists across processes (Launch Services stores it by extension tag).
 
 ### 1.0.7 — visual identity & UI redesign
 
